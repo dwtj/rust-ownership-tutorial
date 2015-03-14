@@ -156,8 +156,8 @@ When an object's ownership is moved up into to a function call (e.g. `foo_move()
 
 
 
-Basic Move And Borrow Examples
-==============================
+Some Basic Move And Borrow Examples
+===================================
 
 The best way to get an intuition for the type-checking rules in Rust is by experimenting with the Rust compiler. An easy way to start doing this is with the [Rust Playpen](play.rust-lang.org). Here is a series of simple examples which may help you get started with how that borrows and moves work in Rust. [4]
 
@@ -218,11 +218,23 @@ This example *does* type check, because ownership of `vec` was returned to `main
 fn main() {
     let vec = vec![0, 0, 0];
     let vec_ref = &vec;
-    foo_borrow(vec_ref);
-    foo_borrow(&vec);  // Type Error!
+    foo_move(vec);  // Type Error!
 }
 ```
-This example *does not* type check. We are able to pass `vec_ref` to the first `foo_borrow()`. That is no problem. However, we cannot create the second borrow reference to `vec` (i.e., the one to be passed to the second `foo_borrow()`): the first borrow reference must be dropped before a second one can be created.
+This example *does not* type check. Notice that the lifetime of `vec_ref` lasts until the end of `main()`. If we were to move `vec` to `foo_move()`, then `vec` will have been dropped by the end of `foo_move()`. The type system cannot allow this because then a borrow reference would *outlive* the object to which it points. That could be the source of use-after-free bugs.
+
+
+### Borrowing When A Borrow Reference Exists ###
+
+```{.rust .numberLines}
+fn main() {
+    let vec = vec![0, 0, 0];
+    let vec_ref = &vec;
+    foo_borrow(vec_ref);
+    foo_borrow(&vec);
+}
+```
+This example *does* type check, because there is no problem simultaneously having two immutable borrow references to an object. [6]
 
 
 ### Borrow From Move Context ###
@@ -256,8 +268,8 @@ This example *does not* type check, because you cannot give away ownership of so
 
 
 
-Example Of When To Borrow
-=========================
+An Example Of When To Borrow
+============================
 
 Below is a less trivial Rust program. Notice that in each of the functions, the vector arguments are *moved*. Do these moves seem like good design decisions?
 
@@ -322,3 +334,5 @@ Endnotes
 [4] We recommend that you try for yourself those examples which do not type check in order to see the errors thrown by the compiler.
 
 [5] Technically, what is happening here is slightly more subtle than this description suggests. First a borrow reference is created. Next this reference is moved to the `foo_borrow()` function. Then, this reference will be dropped at the end of its lifetime, that is, at the end of the scope of `foo_borrow()`. Finally, the `vec` can be moved into `foo_move()` because there do not exist any other claims on its ownership, i.e. live borrow references to `vec`.
+
+ [6] One can make an arbitrary number of borrow references so long they are all *immutable* borrow references. If a borrow reference is mutable, then it must be unique, that is, there can be no other borrow references, either mutable or immutable.
